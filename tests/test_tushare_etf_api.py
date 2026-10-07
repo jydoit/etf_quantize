@@ -1,4 +1,5 @@
 import unittest
+import warnings
 
 import pandas as pd
 
@@ -55,6 +56,21 @@ class TushareETFAPITests(unittest.TestCase):
         result = fetch_etf_basic(fields="csname", fetch_page=fake_page, interval=0)
         self.assertEqual(calls[0]["fields"], "ts_code,csname")
         self.assertEqual(result.iloc[0]["ts_code"], "510300.SH")
+
+    def test_empty_optional_fields_are_preserved_without_future_warning(self):
+        def fake_page(**kwargs):
+            if kwargs["list_status"] == "L":
+                return pd.DataFrame([{"ts_code": "510300.SH", "csname": "沪深300ETF", "mgt_fee": None}])
+            if kwargs["list_status"] == "D":
+                return pd.DataFrame([{"ts_code": "510050.SH", "csname": "上证50ETF", "mgt_fee": 0.5}])
+            return pd.DataFrame()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            result = fetch_etf_basic(fetch_page=fake_page, interval=0)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result.loc[1, "mgt_fee"], 0.5)
+        self.assertEqual(result.columns.tolist(), list(ETF_BASIC_FIELDS))
 
 
 if __name__ == "__main__":

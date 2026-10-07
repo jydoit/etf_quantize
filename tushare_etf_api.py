@@ -102,7 +102,10 @@ def fetch_etf_basic(
 
     if not chunks:
         return pd.DataFrame(columns=selected_fields)
-    result = pd.concat(chunks, ignore_index=True)
+    # Rebuild the small basic-info catalog row-wise: pandas 3 warns when
+    # concatenating status pages whose optional columns are entirely empty.
+    records = [row for page in chunks for row in page.to_dict("records")]
+    result = pd.DataFrame.from_records(records, columns=selected_fields)
     return result.drop_duplicates("ts_code", keep="last").reset_index(drop=True)
 
 
